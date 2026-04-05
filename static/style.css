@@ -438,3 +438,40 @@ button:active { transform: scale(0.97); }
   color: var(--success);
   border: 1px solid var(--border);
 }
+
+
+
+@media (max-width: 768px) {
+  .workspace {
+    flex-direction: column; 
+    overflow-y: auto;
+  }
+
+  .editor-panel {
+    height: 400px; 
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .result-col {
+    flex: none;
+    width: 100%;
+  }
+
+  .ref-drawer {
+    width: 100%; 
+  }
+
+  .topbar {
+    padding: 0 10px;
+  }
+
+  .brand-tag {
+    display: none; 
+  }
+
+  .topbar-actions button {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+}
