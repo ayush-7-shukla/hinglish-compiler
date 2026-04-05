@@ -1,0 +1,10 @@
+banao x = 10
+banao y = 5
+
+z = x + y
+dikhao(z)
+
+agar x > 5:
+    dikhao("x bada hai")
+warna:
+    dikhao("x chota hai")

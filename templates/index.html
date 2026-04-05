@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hinglish Compiler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-hi">हि</span><span class="brand-en">nglish</span>
+    <span class="brand-tag">Compiler</span>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn-ref"  onclick="toggleRef()">⌨ Keywords</button>
+    <button class="btn-ex"   onclick="toggleExamples()">📂 Examples</button>
+    <button class="btn-clear" onclick="clearAll()">✕ Clear</button>
+    <button class="btn-run"  onclick="runCode()">▶ Run</button>
+  </div>
+</div>
+
+<!-- ── Keyword Reference Drawer ── -->
+<div class="ref-drawer" id="refDrawer">
+  <div class="ref-header">
+    <span>Keyword Reference</span>
+    <button onclick="toggleRef()">✕</button>
+  </div>
+  <div class="ref-grid">
+    <div class="ref-section">
+      <div class="ref-section-title">Control Flow</div>
+      <div class="ref-item"><code>agar</code><span>if</span></div>
+      <div class="ref-item"><code>warna_agar</code><span>elif</span></div>
+      <div class="ref-item"><code>warna</code><span>else</span></div>
+      <div class="ref-item"><code>jabtak</code><span>while</span></div>
+      <div class="ref-item"><code>ke_liye</code><span>for</span></div>
+      <div class="ref-item"><code>mein</code><span>in</span></div>
+      <div class="ref-item"><code>band_karo</code><span>break</span></div>
+      <div class="ref-item"><code>agla</code><span>continue</span></div>
+      <div class="ref-item"><code>pass_karo</code><span>pass</span></div>
+    </div>
+    <div class="ref-section">
+      <div class="ref-section-title">Functions & Classes</div>
+      <div class="ref-item"><code>kaam</code><span>def</span></div>
+      <div class="ref-item"><code>wapas</code><span>return</span></div>
+      <div class="ref-item"><code>darja</code><span>class</span></div>
+      <div class="ref-item"><code>khud</code><span>self</span></div>
+      <div class="ref-section-title" style="margin-top:12px">I/O</div>
+      <div class="ref-item"><code>dikhao</code><span>print</span></div>
+      <div class="ref-item"><code>lo</code><span>input</span></div>
+      <div class="ref-item"><code>banao</code><span>— (declare var)</span></div>
+    </div>
+    <div class="ref-section">
+      <div class="ref-section-title">Logic & Values</div>
+      <div class="ref-item"><code>aur</code><span>and</span></div>
+      <div class="ref-item"><code>ya</code><span>or</span></div>
+      <div class="ref-item"><code>nahi</code><span>not</span></div>
+      <div class="ref-item"><code>sach</code><span>True</span></div>
+      <div class="ref-item"><code>jhooth</code><span>False</span></div>
+      <div class="ref-item"><code>kuch_nahi</code><span>None</span></div>
+    </div>
+    <div class="ref-section">
+      <div class="ref-section-title">Builtins</div>
+      <div class="ref-item"><code>lambai</code><span>len</span></div>
+      <div class="ref-item"><code>seema</code><span>range</span></div>
+      <div class="ref-item"><code>prakar</code><span>type</span></div>
+      <div class="ref-item"><code>andaza</code><span>int</span></div>
+      <div class="ref-item"><code>dasha_mlav</code><span>float</span></div>
+      <div class="ref-item"><code>akshar</code><span>str</span></div>
+      <div class="ref-item"><code>suchi</code><span>list</span></div>
+      <div class="ref-item"><code>theli</code><span>dict</span></div>
+      <div class="ref-item"><code>samooh</code><span>set</span></div>
+    </div>
+    <div class="ref-section">
+      <div class="ref-section-title">Exceptions & Imports</div>
+      <div class="ref-item"><code>koshish</code><span>try</span></div>
+      <div class="ref-item"><code>pakdo</code><span>except</span></div>
+      <div class="ref-item"><code>antim</code><span>finally</span></div>
+      <div class="ref-item"><code>uthao</code><span>raise</span></div>
+      <div class="ref-item"><code>laao</code><span>import</span></div>
+      <div class="ref-item"><code>se</code><span>from</span></div>
+    </div>
+  </div>
+</div>
+<div class="ref-overlay" id="refOverlay" onclick="toggleRef()"></div>
+
+<!-- ── Examples Panel ── -->
+<div class="ex-panel" id="exPanel">
+  <div class="ex-header">
+    <span>Examples</span>
+    <button onclick="toggleExamples()">✕</button>
+  </div>
+  <div class="ex-list" id="exList"></div>
+</div>
+<div class="ex-overlay" id="exOverlay" onclick="toggleExamples()"></div>
+
+<!-- ── Main Workspace ── -->
+<div class="workspace">
+  <!-- Left: Editor -->
+  <div class="editor-panel">
+    <div class="panel-header">
+      <span class="panel-label">Hinglish Code</span>
+      <span class="panel-ext">.hl</span>
+    </div>
+    <div id="editor"></div>
+  </div>
+
+  <!-- Middle: Python + Output -->
+  <div class="result-col" style="flex:1; border-right:1px solid var(--border);">
+    <div class="result-panel" id="pythonPanel">
+      <div class="panel-header">
+        <span class="panel-label">Translated Python</span>
+        <span class="panel-ext">.py</span>
+      </div>
+      <pre id="python"><span class="placeholder">Run your code to see the translation...</span></pre>
+    </div>
+    <div class="result-panel" id="outputPanel">
+      <div class="panel-header">
+        <span class="panel-label">Output</span>
+        <span id="statusDot" class="status-dot"></span>
+      </div>
+      <pre id="output"><span class="placeholder">Output will appear here...</span></pre>
+    </div>
+  </div>
+
+  <!-- Right: Parse Tree -->
+  <div class="result-col" style="flex:1.4;">
+    <div class="result-panel" id="treePanel" style="flex:1; border-bottom:none;">
+      <div class="panel-header">
+        <span class="panel-label">Parse Tree</span>
+        <span class="panel-ext">tokens</span>
+      </div>
+      <!-- Legend -->
+      <div class="tree-legend">
+        <div class="tree-legend-item">
+          <div class="tree-legend-dot" style="background:#7c3aed; border:1px solid #a78bfa;"></div>
+          Hinglish keyword
+        </div>
+        <div class="tree-legend-item">
+          <div class="tree-legend-dot" style="background:#052e16; border:1px solid #22c55e;"></div>
+          Python equivalent
+        </div>
+        <div class="tree-legend-item">
+          <div class="tree-legend-dot" style="background:#0c1f3f; border:1px solid #3b82f6;"></div>
+          Identifier
+        </div>
+        <div class="tree-legend-item">
+          <div class="tree-legend-dot" style="background:#2d1500; border:1px solid #f59e0b;"></div>
+          Literal
+        </div>
+        <div class="tree-legend-item">
+          <div class="tree-legend-dot" style="background:#1e0a3c; border:1px solid #a855f7;"></div>
+          Operator
+        </div>
+      </div>
+      <div id="treeScroll">
+        <div class="tree-placeholder">Run your code to see the parse tree...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="statusbar">
+  <span id="statusMsg">Ready — press Ctrl+Enter to run</span>
+  <span>Hinglish v2.0 · 35 keywords</span>
+</div>
+
+<script>
+// ── Examples data ──────────────────────────────────────────────
+const EXAMPLES = [
+  {
+    title: "Hello Duniya",
+    desc:  "Pehla program — print karo",
+    code:
+`# Sabse pehla program
+banao naam = "Duniya"
+dikhao("Namaste,", naam)
+dikhao("Hinglish mein swagat hai! 🎉")`
+  },
+  {
+    title: "Fibonacci",
+    desc:  "Recursive function ka use",
+    code:
+`# Fibonacci sequence
+kaam fibonacci(n):
+    agar n <= 1:
+        wapas n
+    warna:
+        wapas fibonacci(n-1) + fibonacci(n-2)
+
+ke_liye i mein seema(8):
+    dikhao(f"fibonacci({i}) =", fibonacci(i))`
+  },
+  {
+    title: "Grade Calculator",
+    desc:  "if / elif / else example",
+    code:
+`# Grade check karo
+banao score = 85
+
+agar score >= 90:
+    dikhao("Grade: A — Bahut Badiya!")
+warna_agar score >= 75:
+    dikhao("Grade: B — Accha hai!")
+warna_agar score >= 60:
+    dikhao("Grade: C — Theek hai")
+warna:
+    dikhao("Grade: F — Mehnat karo!")`
+  },
+  {
+    title: "Loop aur List",
+    desc:  "for loop aur list ka use",
+    code:
+`# Fruits ki list
+banao fruits = ["Aam", "Kela", "Santara", "Angoor"]
+
+dikhao("Mere pasand ke fruits:")
+ke_liye fruit mein fruits:
+    dikhao(" -", fruit)
+
+dikhao("\\nKul fruits:", lambai(fruits))`
+  },
+  {
+    title: "Try / Except",
+    desc:  "Error handling karo",
+    code:
+`# Safe division
+kaam safe_divide(a, b):
+    koshish:
+        wapas a / b
+    pakdo ZeroDivisionError:
+        dikhao("Galti: Zero se divide nahi kar sakte!")
+        wapas kuch_nahi
+
+dikhao(safe_divide(10, 2))
+dikhao(safe_divide(5, 0))`
+  },
+  {
+    title: "While Loop",
+    desc:  "jabtak loop ka example",
+    code:
+`# Count down karo
+banao ginti = 5
+
+dikhao("Countdown shuru:")
+jabtak ginti > 0:
+    dikhao(ginti, "...")
+    ginti = ginti - 1
+dikhao("🚀 Blast off!")`
+  },
+];
+
+// ── Typewriter engine ──────────────────────────────────────────
+let typeTimer = null;
+
+function typeIntoEditor(code) {
+  if (!editor) return;
+  if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
+  editor.setValue("");
+  const lines = code.split("\n");
+  let lineIdx = 0, charIdx = 0;
+
+  function tick() {
+    if (lineIdx >= lines.length) return;
+    const line = lines[lineIdx];
+    if (charIdx <= line.length) {
+      const current = lines.slice(0, lineIdx).join("\n") + (lineIdx > 0 ? "\n" : "") + line.slice(0, charIdx);
+      editor.setValue(current);
+      const model = editor.getModel();
+      const lastLine = model.getLineCount();
+      const lastCol  = model.getLineMaxColumn(lastLine);
+      editor.setPosition({ lineNumber: lastLine, column: lastCol });
+      editor.revealPosition({ lineNumber: lastLine, column: lastCol });
+      charIdx++;
+      typeTimer = setTimeout(tick, 18);
+    } else {
+      lineIdx++; charIdx = 0;
+      typeTimer = setTimeout(tick, 120);
+    }
+  }
+  tick();
+}
+
+// ── Examples panel ─────────────────────────────────────────────
+function buildExList() {
+  const list = document.getElementById("exList");
+  list.innerHTML = "";
+  EXAMPLES.forEach((ex, i) => {
+    const card = document.createElement("div");
+    card.className = "ex-card";
+    card.innerHTML = `
+      <div class="ex-card-title">${ex.title}</div>
+      <div class="ex-card-desc">${ex.desc}</div>
+      <button class="ex-load-btn" onclick="loadExample(${i})">▶ Load & Type</button>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function loadExample(i) {
+  toggleExamples();
+  clearOutput();
+  setTimeout(() => typeIntoEditor(EXAMPLES[i].code), 150);
+  setStatus(`Typing: "${EXAMPLES[i].title}"`, "running");
+}
+
+function toggleExamples() {
+  document.getElementById("exPanel").classList.toggle("open");
+  document.getElementById("exOverlay").classList.toggle("open");
+}
+
+// ── Monaco setup ───────────────────────────────────────────────
+let editor;
+require.config({ paths: { vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs" } });
+require(["vs/editor/editor.main"], function () {
+  monaco.languages.register({ id: "hinglish" });
+  monaco.languages.setMonarchTokensProvider("hinglish", {
+    keywords: [
+      "agar","warna_agar","warna","jabtak","ke_liye","mein","band_karo","agla","pass_karo",
+      "kaam","wapas","darja","khud","dikhao","lo","banao",
+      "sach","jhooth","kuch_nahi","aur","ya","nahi",
+      "koshish","pakdo","antim","uthao","laao","se",
+      "lambai","prakar","seema","andaza","dasha_mlav","akshar","suchi","theli","samooh"
+    ],
+    tokenizer: {
+      root: [
+        [/#.*$/, "comment"],
+        [/"([^"\\]|\\.)*"/, "string"],
+        [/'([^'\\]|\\.)*'/, "string"],
+        [/\b\d+(\.\d+)?\b/, "number"],
+        [/[a-zA-Z_]\w*/, { cases: { "@keywords": "keyword", "@default": "identifier" } }],
+        [/[()[\]{},.:;+\-*/%=<>!&|^~]/, "operator"],
+      ]
+    }
+  });
+
+  monaco.editor.defineTheme("hinglish-dark", {
+    base: "vs-dark", inherit: true,
+    rules: [
+      { token: "keyword",  foreground: "ff7b72", fontStyle: "bold" },
+      { token: "string",   foreground: "a5d6ff" },
+      { token: "number",   foreground: "79c0ff" },
+      { token: "comment",  foreground: "8b949e", fontStyle: "italic" },
+      { token: "operator", foreground: "ff7b72" },
+    ],
+    colors: {
+      "editor.background":              "#0d1117",
+      "editor.foreground":              "#e6edf3",
+      "editor.lineHighlightBackground": "#161b22",
+      "editorLineNumber.foreground":    "#3d444d",
+      "editorLineNumber.activeForeground": "#8b949e",
+      "editor.selectionBackground":     "#264f78",
+      "editorCursor.foreground":        "#f78166",
+    }
+  });
+
+  editor = monaco.editor.create(document.getElementById("editor"), {
+    value: "",
+    language: "hinglish",
+    theme: "hinglish-dark",
+    automaticLayout: true,
+    fontSize: 14,
+    fontFamily: "'JetBrains Mono', monospace",
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    padding: { top: 16, bottom: 16 },
+  });
+
+  setTimeout(() => typeIntoEditor(EXAMPLES[0].code), 600);
+  setStatus('Typing example — press Ctrl+Enter to run', "running");
+});
+
+// ── Parse Tree Renderer ────────────────────────────────────────
+function renderParseTree(tokenLines) {
+  const container = document.getElementById("treeScroll");
+  if (!tokenLines || tokenLines.length === 0) {
+    container.innerHTML = '<div class="tree-placeholder">No tokens to display.</div>';
+    return;
+  }
+
+  // Layout constants
+  const NODE_H   = 26;
+  const NODE_PAD = 10;
+  const NODE_GAP = 5;
+  const ROOT_H   = 22;
+  const ROOT_W   = 110;
+  const V_SPACE  = 54;   // root top -> token row top
+  const LINE_GAP = 28;   // gap between line blocks
+
+  // Measure text width (approximate)
+  function textW(str) {
+    return Math.max(32, str.length * 7.2 + NODE_PAD * 2);
+  }
+
+  // Build SVG node groups for one line
+  function buildLineNodes(lineData) {
+    const nodes = [];
+    lineData.tokens.forEach(t => {
+      if (t.type === 'kw') {
+        nodes.push({ label: t.tok, cls: 'n-kw', isKw: true, pyLabel: t.py });
+        nodes.push({ label: '→', cls: 'n-arrow', isArrow: true });
+        nodes.push({ label: t.py, cls: 'n-py', isPy: true });
+      } else {
+        nodes.push({ label: t.tok, cls: 'n-' + t.type });
+      }
+    });
+    // measure widths
+    nodes.forEach(n => {
+      n.w = n.isArrow ? 20 : Math.max(34, textW(n.label));
+    });
+    return nodes;
+  }
+
+  // Compute total SVG width needed per line
+  function rowWidth(nodes) {
+    return nodes.reduce((s, n) => s + n.w, 0) + (nodes.length - 1) * NODE_GAP;
+  }
+
+  // Gather all lines
+  const lines = tokenLines.map(ld => {
+    const nodes = buildLineNodes(ld);
+    return { ld, nodes, rw: rowWidth(nodes) };
+  });
+
+  // SVG canvas width: at least 500, at most max row needed + margins
+  const CANVAS_W = Math.max(500, Math.min(2400, Math.max(...lines.map(l => l.rw)) + 80));
+
+  // Compute total height
+  let totalH = 10;
+  lines.forEach((l, i) => {
+    l.rootY = totalH;
+    l.tokY  = totalH + ROOT_H + V_SPACE;
+    totalH  = l.tokY + NODE_H + (i < lines.length - 1 ? LINE_GAP : 20);
+  });
+
+  // Build SVG string
+  let svg = `<svg width="${CANVAS_W}" height="${totalH}" viewBox="0 0 ${CANVAS_W} ${totalH}" xmlns="http://www.w3.org/2000/svg" style="font-family:'JetBrains Mono',monospace;">
+<defs>
+  <marker id="tarr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+  <marker id="earr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="#30363d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+`;
+
+  lines.forEach(({ ld, nodes, rw, rootY, tokY }, li) => {
+    // indent indicator
+    const indentLabel = ld.indent > 0 ? `line ${ld.line_num}  (indent: ${ld.indent})` : `line ${ld.line_num}`;
+    const rootX = (CANVAS_W - ROOT_W) / 2;
+    const rootMidX = rootX + ROOT_W / 2;
+    const rootBotY = rootY + ROOT_H;
+
+    // Root node
+    svg += `<g class="n-root">
+  <rect x="${rootX}" y="${rootY}" width="${ROOT_W}" height="${ROOT_H}" rx="4"/>
+  <text x="${rootMidX}" y="${rootY + ROOT_H/2}" text-anchor="middle" dominant-baseline="central">${esc(indentLabel)}</text>
+</g>`;
+
+    // Position nodes centered in row
+    const startX = (CANVAS_W - rw) / 2;
+    let cx = startX;
+    nodes.forEach(n => { n.x = cx; n.y = tokY; cx += n.w + NODE_GAP; });
+
+    // Draw edges from root to non-arrow, non-py nodes
+    nodes.forEach(n => {
+      if (n.isArrow || n.isPy) return;
+      const nMidX = n.x + n.w / 2;
+      const cy1 = rootBotY + (tokY - rootBotY) * 0.4;
+      const cy2 = rootBotY + (tokY - rootBotY) * 0.7;
+      svg += `<path class="tree-edge" d="M${rootMidX} ${rootBotY} C${rootMidX} ${cy1} ${nMidX} ${cy2} ${nMidX} ${tokY}" marker-end="url(#earr)"/>`;
+    });
+
+    // Draw kw→py translation arcs (curved arrow below the token row)
+    nodes.forEach((n, i) => {
+      if (n.isKw && nodes[i+2] && nodes[i+2].isPy) {
+        const kwMidX = n.x + n.w / 2;
+        const pyMidX = nodes[i+2].x + nodes[i+2].w / 2;
+        const arcY   = tokY + NODE_H + 12;
+        svg += `<path class="kw-bracket" d="M${kwMidX} ${tokY+NODE_H} L${kwMidX} ${arcY} L${pyMidX} ${arcY} L${pyMidX} ${tokY+NODE_H}"/>`;
+      }
+    });
+
+    // Draw nodes
+    nodes.forEach(n => {
+      if (n.isArrow) {
+        // small arrow glyph between kw and py
+        svg += `<text x="${n.x + n.w/2}" y="${n.y + NODE_H/2}" text-anchor="middle" dominant-baseline="central"
+  style="font-size:13px; fill:#22c55e; font-family:'JetBrains Mono',monospace;">⇄</text>`;
+      } else {
+        const label = n.label || '(removed)';
+        svg += `<g class="${n.cls}">
+  <rect x="${n.x}" y="${n.y}" width="${n.w}" height="${NODE_H}" rx="4"/>
+  <text x="${n.x + n.w/2}" y="${n.y + NODE_H/2}" text-anchor="middle" dominant-baseline="central">${esc(label)}</text>
+</g>`;
+      }
+    });
+
+    // Separator line between lines (dashed)
+    if (li < lines.length - 1) {
+      const sepY = tokY + NODE_H + LINE_GAP / 2;
+      svg += `<line class="line-sep" x1="20" y1="${sepY}" x2="${CANVAS_W - 20}" y2="${sepY}"/>`;
+    }
+  });
+
+  svg += '</svg>';
+  container.innerHTML = svg;
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// ── Run / UI helpers ───────────────────────────────────────────
+function setStatus(msg, type) {
+  document.getElementById("statusMsg").textContent = msg;
+  document.getElementById("statusDot").className = "status-dot" + (type ? " " + type : "");
+}
+
+function clearOutput() {
+  document.getElementById("output").innerHTML = '<span class="placeholder">Output will appear here...</span>';
+  document.getElementById("outputPanel").classList.remove("has-error");
+}
+
+function runCode() {
+  if (!editor) return;
+  if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
+
+  setStatus("Running...", "running");
+  document.getElementById("output").innerHTML = '<span class="placeholder">Executing...</span>';
+  document.getElementById("treeScroll").innerHTML = '<div class="tree-placeholder">Building parse tree...</div>';
+
+  fetch("/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: editor.getValue() })
+  })
+  .then(res => res.json())
+  .then(data => {
+    document.getElementById("python").textContent = data.python;
+    const hasError = data.output && (data.output.includes("Error") || data.output.includes("Traceback"));
+    document.getElementById("output").textContent = data.output || "(no output)";
+    document.getElementById("outputPanel").classList.toggle("has-error", hasError);
+    setStatus(hasError ? "⚠ Error" : "✓ Done", hasError ? "error" : "success");
+
+    // Render parse tree
+    if (data.tokens) {
+      renderParseTree(data.tokens);
+    }
+  })
+  .catch(err => {
+    document.getElementById("output").textContent = "Network error: " + err.message;
+    document.getElementById("treeScroll").innerHTML = '<div class="tree-placeholder">Error fetching parse tree.</div>';
+    setStatus("Failed", "error");
+  });
+}
+
+function clearAll() {
+  if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
+  if (editor) editor.setValue("");
+  document.getElementById("python").innerHTML = '<span class="placeholder">Run your code to see the translation...</span>';
+  document.getElementById("treeScroll").innerHTML = '<div class="tree-placeholder">Run your code to see the parse tree...</div>';
+  clearOutput();
+  setStatus("Ready — press Ctrl+Enter to run", "");
+}
+
+function toggleRef() {
+  document.getElementById("refDrawer").classList.toggle("open");
+  document.getElementById("refOverlay").classList.toggle("open");
+}
+
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runCode();
+});
+
+buildExList();
+</script>
+</body>
+</html>
