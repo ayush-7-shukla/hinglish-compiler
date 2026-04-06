@@ -360,77 +360,7 @@ button:active { transform: scale(0.97); }
 /* ── Both result panels share height equally ── */
 .result-col { flex-direction: column; }
 #pythonPanel { flex: 1; border-bottom: 1px solid var(--border); }
-#outputPanel { flex: 1; border-bottom: 1px solid var(--border); }
-
-/* ── Parse Tree Panel ── */
-#treePanel {
-  flex: 2;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-bottom: none;
-}
-
-#treePanel .panel-header {
-  flex-shrink: 0;
-}
-
-#treeScroll {
-  flex: 1;
-  overflow: auto;
-  background: var(--bg);
-  padding: 12px 8px;
-}
-
-/* SVG node colours */
-#treeScroll svg .n-root rect  { fill: #1f2937; stroke: #4b5563; stroke-width: 0.8; }
-#treeScroll svg .n-root text  { fill: #9ca3af; font-size: 11px; }
-#treeScroll svg .n-kw   rect  { fill: #3b1f6e; stroke: #7c3aed; stroke-width: 0.8; }
-#treeScroll svg .n-kw   text  { fill: #c4b5fd; font-size: 11px; font-weight: 600; }
-#treeScroll svg .n-py   rect  { fill: #052e16; stroke: #22c55e; stroke-width: 0.8; }
-#treeScroll svg .n-py   text  { fill: #86efac; font-size: 11px; font-weight: 600; }
-#treeScroll svg .n-ident rect { fill: #0c1f3f; stroke: #3b82f6; stroke-width: 0.8; }
-#treeScroll svg .n-ident text { fill: #93c5fd; font-size: 11px; }
-#treeScroll svg .n-lit  rect  { fill: #2d1500; stroke: #f59e0b; stroke-width: 0.8; }
-#treeScroll svg .n-lit  text  { fill: #fcd34d; font-size: 11px; }
-#treeScroll svg .n-op   rect  { fill: #1e0a3c; stroke: #a855f7; stroke-width: 0.8; }
-#treeScroll svg .n-op   text  { fill: #d8b4fe; font-size: 11px; }
-#treeScroll svg .n-comment rect { fill: #1a1f26; stroke: #374151; stroke-width: 0.8; }
-#treeScroll svg .n-comment text { fill: #6b7280; font-size: 11px; font-style: italic; }
-#treeScroll svg .tree-edge     { stroke: #30363d; stroke-width: 0.8; fill: none; }
-#treeScroll svg .kw-bracket    { stroke: #7c3aed; stroke-width: 0.8; fill: none; stroke-dasharray: 3 3; }
-#treeScroll svg .translate-arrow { stroke: #22c55e; stroke-width: 0.8; fill: none; marker-end: url(#tarr); }
-#treeScroll svg .line-sep      { stroke: #30363d; stroke-width: 0.5; stroke-dasharray: 4 4; }
-
-/* Legend */
-.tree-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-  flex-shrink: 0;
-}
-.tree-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  color: var(--muted);
-}
-.tree-legend-dot {
-  width: 9px; height: 9px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-.tree-placeholder {
-  color: var(--muted);
-  font-style: italic;
-  font-size: 13px;
-  padding: 20px 14px;
-}
+#outputPanel { flex: 1; border-bottom: none; }
 
 /* ── Examples button color ── */
 .btn-ex {
@@ -438,40 +368,92 @@ button:active { transform: scale(0.97); }
   color: var(--success);
   border: 1px solid var(--border);
 }
+/* ── result panels: three-panel layout fix ── */
+#pythonPanel { flex: 1; border-bottom: 1px solid var(--border); }
+#outputPanel { flex: 1; border-bottom: none; }
+#treePanel   { flex: 1; border-bottom: none; }
 
+/* ── AST parse tree panel ── */
+.tree-legend {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.tree-legend-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--muted);
+}
+.tree-legend-dot {
+  width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0;
+}
+#treeScroll {
+  flex: 1; overflow: auto; background: var(--bg); padding: 12px 8px;
+}
+.tree-placeholder {
+  color: var(--muted); font-style: italic; font-size: 13px; padding: 20px 14px;
+}
 
+/* ── examples button ── */
+.btn-ex {
+  background: transparent; color: var(--success); border: 1px solid var(--border);
+}
 
-@media (max-width: 768px) {
-  .workspace {
-    flex-direction: column; 
-    overflow-y: auto;
-  }
+/* ── Maximize button ── */
+.btn-maximize {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.btn-maximize:hover {
+  color: var(--accent2);
+  border-color: var(--accent2);
+  opacity: 1;
+}
 
-  .editor-panel {
-    height: 400px; 
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
+/* ── Tree fullscreen overlay ── */
+.tree-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.7);
+  animation: overlayFadeIn 0.15s ease;
+}
+.tree-overlay.open {
+  display: flex;
+  align-items: stretch;
+}
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 
-  .result-col {
-    flex: none;
-    width: 100%;
-  }
+.tree-overlay-panel {
+  position: absolute;
+  inset: var(--topbar-h) 0 var(--status-h) 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  animation: panelSlideUp 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes panelSlideUp {
+  from { transform: translateY(18px); opacity: 0.6; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
 
-  .ref-drawer {
-    width: 100%; 
-  }
-
-  .topbar {
-    padding: 0 10px;
-  }
-
-  .brand-tag {
-    display: none; 
-  }
-
-  .topbar-actions button {
-    padding: 6px 8px;
-    font-size: 11px;
-  }
+#treeScrollFull {
+  flex: 1;
+  overflow: auto;
+  background: var(--bg);
+  padding: 16px 12px;
 }

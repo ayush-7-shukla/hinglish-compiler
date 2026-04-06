@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from translator import translate, tokenize
+from translator import translate, parse_to_ast
 import io
 import sys
 
@@ -13,8 +13,14 @@ def home():
 def run_code():
     hinglish_code = request.json["code"]
 
-    python_code = translate(hinglish_code)
-    tokens      = tokenize(hinglish_code)
+    # RDP: Hinglish → AST → Python
+    try:
+        python_code = translate(hinglish_code)
+    except Exception as e:
+        python_code = f"# Translation error: {e}"
+
+    # also send the full AST for the parse-tree panel
+    ast_result = parse_to_ast(hinglish_code)
 
     output = ""
     try:
@@ -28,9 +34,10 @@ def run_code():
         output = str(e)
 
     return jsonify({
-        "python": python_code,
-        "output": output,
-        "tokens": tokens
+        "python":    python_code,
+        "output":    output,
+        "ast":       ast_result.get("ast"),
+        "ast_error": ast_result.get("error"),
     })
 
 
