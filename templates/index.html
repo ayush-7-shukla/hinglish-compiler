@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Hinglish Compiler</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,20 +12,38 @@
 </head>
 <body>
 
+<!-- ── Topbar ── -->
 <div class="topbar">
   <div class="brand">
     <span class="brand-hi">हि</span><span class="brand-en">nglish</span>
     <span class="brand-tag">Compiler</span>
   </div>
   <div class="topbar-actions">
-    <button class="btn-ref"  onclick="toggleRef()">⌨ Keywords</button>
-    <button class="btn-ex"   onclick="toggleExamples()">📂 Examples</button>
-    <button class="btn-clear" onclick="clearAll()">✕ Clear</button>
-    <button class="btn-run"  onclick="runCode()">▶ Run</button>
+    <button class="btn-icon" onclick="toggleRef()" title="Keywords">
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="3" width="13" height="2" rx="1" fill="currentColor"/><rect x="1" y="7" width="9" height="2" rx="1" fill="currentColor"/><rect x="1" y="11" width="11" height="2" rx="1" fill="currentColor"/></svg>
+      <span class="btn-label">Keywords</span>
+    </button>
+    <button class="btn-icon" onclick="toggleExamples()" title="Examples">
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="2" y="1" width="11" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><rect x="4" y="5" width="7" height="1.5" rx="0.75" fill="currentColor"/><rect x="4" y="8" width="5" height="1.5" rx="0.75" fill="currentColor"/></svg>
+      <span class="btn-label">Examples</span>
+    </button>
+    <button class="btn-icon btn-clear-icon" onclick="clearAll()" title="Clear">
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 2L13 13M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span class="btn-label">Clear</span>
+    </button>
+    <button class="btn-run" onclick="runCode()">▶ Run</button>
   </div>
 </div>
 
-<!-- Keyword Reference Drawer -->
+<!-- ── Mobile Tab Bar ── -->
+<div class="tab-bar" id="tabBar">
+  <button class="tab active" data-tab="editor"  onclick="switchTab('editor')">Code</button>
+  <button class="tab"        data-tab="python"  onclick="switchTab('python')">Python</button>
+  <button class="tab"        data-tab="output"  onclick="switchTab('output')">Output</button>
+  <button class="tab"        data-tab="tree"    onclick="switchTab('tree')">AST Tree</button>
+</div>
+
+<!-- ── Keyword Reference Drawer ── -->
 <div class="ref-drawer" id="refDrawer">
   <div class="ref-header">
     <span>Keyword Reference</span>
@@ -88,7 +107,7 @@
 </div>
 <div class="ref-overlay" id="refOverlay" onclick="toggleRef()"></div>
 
-<!-- Examples Panel -->
+<!-- ── Examples Panel ── -->
 <div class="ex-panel" id="exPanel">
   <div class="ex-header">
     <span>Examples</span>
@@ -98,27 +117,32 @@
 </div>
 <div class="ex-overlay" id="exOverlay" onclick="toggleExamples()"></div>
 
-<!-- Main Workspace -->
+<!-- ── Main Workspace ── -->
 <div class="workspace">
-  <!-- Left: Editor -->
-  <div class="editor-panel">
+
+  <!-- Editor panel -->
+  <div class="editor-panel panel-page" id="page-editor">
     <div class="panel-header">
       <span class="panel-label">Hinglish Code</span>
       <span class="panel-ext">.hl</span>
     </div>
-    <div id="editor"></div>
+    <!-- Monaco mounts here on desktop; hidden on mobile -->
+    <div id="monacoEditor"></div>
+    <!-- Textarea fallback for mobile -->
+    <textarea id="mobileEditor" spellcheck="false" autocorrect="off" autocapitalize="off"
+      placeholder="Write Hinglish code here...&#10;&#10;Example:&#10;dikhao(&quot;Namaste!&quot;)"></textarea>
   </div>
 
-  <!-- Middle: Python + Output -->
-  <div class="result-col" style="flex:1; border-right:1px solid var(--border);">
-    <div class="result-panel" id="pythonPanel">
+  <!-- Python + Output column -->
+  <div class="result-col">
+    <div class="result-panel panel-page" id="page-python">
       <div class="panel-header">
         <span class="panel-label">Translated Python</span>
         <span class="panel-ext">.py</span>
       </div>
       <pre id="python"><span class="placeholder">Run your code to see the translation...</span></pre>
     </div>
-    <div class="result-panel" id="outputPanel">
+    <div class="result-panel panel-page" id="page-output">
       <div class="panel-header">
         <span class="panel-label">Output</span>
         <span id="statusDot" class="status-dot"></span>
@@ -127,26 +151,24 @@
     </div>
   </div>
 
-  <!-- Right: AST Parse Tree -->
-  <div class="result-col" style="flex:1.4;">
-    <div class="result-panel" id="treePanel" style="flex:1;border-bottom:none;">
+  <!-- AST Parse Tree column -->
+  <div class="result-col tree-col">
+    <div class="result-panel panel-page" id="page-tree" style="flex:1;border-bottom:none;">
       <div class="panel-header">
         <span class="panel-label">AST — Parse Tree</span>
         <div style="display:flex;align-items:center;gap:8px;">
-          <span class="panel-ext" style="font-size:10px;color:var(--muted);">Recursive Descent</span>
-          <button class="btn-maximize" id="treeMaxBtn" onclick="toggleTreeMax()" title="Maximize parse tree">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M1 4.5V1H4.5M7.5 1H11V4.5M11 7.5V11H7.5M4.5 11H1V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+          <span class="panel-ext desktop-only" style="font-size:10px;color:var(--muted);">Recursive Descent</span>
+          <button class="btn-maximize" id="treeMaxBtn" onclick="toggleTreeMax()" title="Maximize">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 4.5V1H4.5M7.5 1H11V4.5M11 7.5V11H7.5M4.5 11H1V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
       </div>
       <div class="tree-legend">
         <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#1a3a5c;border:1px solid #79c0ff;"></div>Statement</div>
         <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#3b1f6e;border:1px solid #a78bfa;"></div>Expression</div>
-        <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#052e16;border:1px solid #22c55e;"></div>Keyword (translated)</div>
+        <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#052e16;border:1px solid #22c55e;"></div>Keyword</div>
         <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#2d1500;border:1px solid #f59e0b;"></div>Literal</div>
-        <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#0c1f3f;border:1px solid #3b82f6;"></div>Name / identifier</div>
+        <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#0c1f3f;border:1px solid #3b82f6;"></div>Name</div>
       </div>
       <div id="treeScroll">
         <div class="tree-placeholder">Run your code to see the AST...</div>
@@ -155,117 +177,119 @@
   </div>
 </div>
 
-<!-- Tree fullscreen overlay -->
+<!-- ── Tree Fullscreen Overlay ── -->
 <div id="treeOverlay" class="tree-overlay">
   <div class="tree-overlay-panel">
     <div class="panel-header">
       <span class="panel-label">AST — Parse Tree</span>
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="panel-ext" style="font-size:10px;color:var(--muted);">Recursive Descent</span>
-        <button class="btn-maximize" onclick="toggleTreeMax()" title="Close fullscreen">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M1 1L4.5 4.5M7.5 4.5L11 1M11 11L7.5 7.5M4.5 7.5L1 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
+        <button class="btn-maximize" onclick="toggleTreeMax()" title="Close">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1L4.5 4.5M7.5 4.5L11 1M11 11L7.5 7.5M4.5 7.5L1 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
       </div>
     </div>
     <div class="tree-legend">
       <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#1a3a5c;border:1px solid #79c0ff;"></div>Statement</div>
       <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#3b1f6e;border:1px solid #a78bfa;"></div>Expression</div>
-      <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#052e16;border:1px solid #22c55e;"></div>Keyword (translated)</div>
+      <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#052e16;border:1px solid #22c55e;"></div>Keyword</div>
       <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#2d1500;border:1px solid #f59e0b;"></div>Literal</div>
-      <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#0c1f3f;border:1px solid #3b82f6;"></div>Name / identifier</div>
+      <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#0c1f3f;border:1px solid #3b82f6;"></div>Name</div>
     </div>
     <div id="treeScrollFull"></div>
   </div>
 </div>
 
+<!-- ── Mobile Run FAB ── -->
+<button class="fab-run" onclick="runCode()" id="fabRun">▶</button>
+
 <div class="statusbar">
-  <span id="statusMsg">Ready — press Ctrl+Enter to run</span>
-  <span>Hinglish v3.0 · RDP Parser · 35 keywords</span>
+  <span id="statusMsg">Ready</span>
+  <span class="desktop-only">Hinglish v3.0 · RDP Parser · 35 keywords</span>
 </div>
 
 <script>
+// ── Device detection ───────────────────────────────────────────
+const isMobile = () => window.innerWidth <= 768;
+
 // ── Examples ───────────────────────────────────────────────────
 const EXAMPLES = [
   {
     title: "Hello Duniya",
-    desc:  "Pehla program — print karo",
-    code:
-`# Sabse pehla program
-banao naam = "Duniya"
-dikhao("Namaste,", naam)
-dikhao("Hinglish mein swagat hai!")`
+    desc:  "Pehla program",
+    code: `# Pehla program\nbanao naam = "Duniya"\ndikhao("Namaste,", naam)`
   },
   {
     title: "Fibonacci",
-    desc:  "Recursive function ka use",
-    code:
-`kaam fibonacci(n):
-    agar n <= 1:
-        wapas n
-    warna:
-        wapas fibonacci(n-1) + fibonacci(n-2)
-
-ke_liye i mein seema(8):
-    dikhao(fibonacci(i))`
+    desc:  "Recursive function",
+    code: `kaam fibonacci(n):\n    agar n <= 1:\n        wapas n\n    warna:\n        wapas fibonacci(n-1) + fibonacci(n-2)\n\nke_liye i mein seema(8):\n    dikhao(fibonacci(i))`
   },
   {
     title: "Grade Calculator",
-    desc:  "if / elif / else example",
-    code:
-`banao score = 85
-
-agar score >= 90:
-    dikhao("Grade: A")
-warna_agar score >= 75:
-    dikhao("Grade: B")
-warna_agar score >= 60:
-    dikhao("Grade: C")
-warna:
-    dikhao("Grade: F")`
+    desc:  "if / elif / else",
+    code: `banao score = 85\n\nagar score >= 90:\n    dikhao("Grade: A")\nwarna_agar score >= 75:\n    dikhao("Grade: B")\nwarna_agar score >= 60:\n    dikhao("Grade: C")\nwarna:\n    dikhao("Grade: F")`
   },
   {
     title: "Loop aur List",
-    desc:  "for loop aur list ka use",
-    code:
-`banao fruits = ["Aam", "Kela", "Santara"]
-
-ke_liye fruit mein fruits:
-    dikhao(fruit)
-
-dikhao("Kul:", lambai(fruits))`
+    desc:  "for loop + list",
+    code: `banao fruits = ["Aam", "Kela", "Santara"]\n\nke_liye fruit mein fruits:\n    dikhao(fruit)\n\ndikhao("Kul:", lambai(fruits))`
   },
   {
     title: "Try / Except",
-    desc:  "Error handling karo",
-    code:
-`kaam safe_divide(a, b):
-    koshish:
-        wapas a / b
-    pakdo ZeroDivisionError:
-        dikhao("Zero se divide nahi!")
-        wapas kuch_nahi
-
-dikhao(safe_divide(10, 2))
-dikhao(safe_divide(5, 0))`
+    desc:  "Error handling",
+    code: `kaam safe_divide(a, b):\n    koshish:\n        wapas a / b\n    pakdo ZeroDivisionError:\n        dikhao("Zero se divide nahi!")\n        wapas kuch_nahi\n\ndikhao(safe_divide(10, 2))\ndikhao(safe_divide(5, 0))`
   },
   {
     title: "While Loop",
-    desc:  "jabtak loop ka example",
-    code:
-`banao ginti = 5
-
-jabtak ginti > 0:
-    dikhao(ginti)
-    ginti = ginti - 1
-dikhao("Blast off!")`
+    desc:  "jabtak loop",
+    code: `banao ginti = 5\n\njabtak ginti > 0:\n    dikhao(ginti)\n    ginti = ginti - 1\ndikhao("Blast off!")`
   },
 ];
+
+// ── Tab switching (mobile) ─────────────────────────────────────
+let activeTab = "editor";
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
+
+  // show/hide panel pages on mobile
+  document.querySelectorAll(".panel-page").forEach(p => p.classList.remove("tab-active"));
+  const map = {
+    editor: "page-editor",
+    python: "page-python",
+    output: "page-output",
+    tree:   "page-tree",
+  };
+  const target = document.getElementById(map[tab]);
+  if (target) target.classList.add("tab-active");
+
+  // trigger monaco layout if switching to editor
+  if (tab === "editor" && editor) {
+    setTimeout(() => editor.layout(), 50);
+  }
+}
+
+// ── Editor value getters/setters ───────────────────────────────
+function getCode() {
+  if (isMobile()) return document.getElementById("mobileEditor").value;
+  return editor ? editor.getValue() : "";
+}
+function setCode(val) {
+  if (isMobile()) {
+    document.getElementById("mobileEditor").value = val;
+  } else if (editor) {
+    editor.setValue(val);
+  }
+}
 
 // ── Typewriter ─────────────────────────────────────────────────
 let typeTimer = null;
 function typeIntoEditor(code) {
+  if (isMobile()) {
+    // instant on mobile — typing animation is jarring on touch
+    setCode(code);
+    return;
+  }
   if (!editor) return;
   if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
   editor.setValue("");
@@ -278,9 +302,7 @@ function typeIntoEditor(code) {
       const cur = lines.slice(0, li).join("\n") + (li > 0 ? "\n" : "") + line.slice(0, ci);
       editor.setValue(cur);
       const m = editor.getModel();
-      const lc = m.getLineCount(), cc = m.getLineMaxColumn(lc);
-      editor.setPosition({lineNumber: lc, column: cc});
-      editor.revealPosition({lineNumber: lc, column: cc});
+      editor.setPosition({lineNumber: m.getLineCount(), column: m.getLineMaxColumn(m.getLineCount())});
       ci++;
       typeTimer = setTimeout(tick, 18);
     } else { li++; ci = 0; typeTimer = setTimeout(tick, 120); }
@@ -303,19 +325,23 @@ function buildExList() {
 }
 
 function loadExample(i) {
-  toggleExamples(); clearOutput();
-  setTimeout(() => typeIntoEditor(EXAMPLES[i].code), 150);
-  setStatus(`Typing: "${EXAMPLES[i].title}"`, "running");
+  toggleExamples();
+  clearOutput();
+  typeIntoEditor(EXAMPLES[i].code);
+  if (isMobile()) switchTab("editor");
+  setStatus(`Loaded: "${EXAMPLES[i].title}"`, "running");
 }
 function toggleExamples() {
   document.getElementById("exPanel").classList.toggle("open");
   document.getElementById("exOverlay").classList.toggle("open");
 }
 
-// ── Monaco ─────────────────────────────────────────────────────
+// ── Monaco (desktop only) ──────────────────────────────────────
 let editor;
 require.config({ paths: { vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs" } });
 require(["vs/editor/editor.main"], function () {
+  if (isMobile()) return; // skip Monaco on mobile
+
   monaco.languages.register({ id: "hinglish" });
   monaco.languages.setMonarchTokensProvider("hinglish", {
     keywords: ["agar","warna_agar","warna","jabtak","ke_liye","mein","band_karo","agla","pass_karo",
@@ -350,247 +376,180 @@ require(["vs/editor/editor.main"], function () {
       "editorCursor.foreground": "#f78166",
     }
   });
-  editor = monaco.editor.create(document.getElementById("editor"), {
+  editor = monaco.editor.create(document.getElementById("monacoEditor"), {
     value: "", language: "hinglish", theme: "hinglish-dark",
     automaticLayout: true, fontSize: 14,
     fontFamily: "'JetBrains Mono', monospace",
     minimap: { enabled: false }, scrollBeyondLastLine: false,
     padding: { top: 16, bottom: 16 },
   });
+
   setTimeout(() => typeIntoEditor(EXAMPLES[0].code), 600);
-  setStatus("Typing example — press Ctrl+Enter to run", "running");
+  setStatus("Typing example — Ctrl+Enter to run", "running");
 });
 
+// On mobile, set a starter example immediately
+if (isMobile()) {
+  document.getElementById("mobileEditor").value = EXAMPLES[0].code;
+  // activate editor tab
+  document.getElementById("page-editor").classList.add("tab-active");
+  setStatus("Tap ▶ to run", "");
+}
+
 // ── AST Tree Renderer ──────────────────────────────────────────
-// Node kind → display category
 const KIND_CAT = {
-  Program:     "root",
-  IfStmt:      "stmt",   WhileStmt: "stmt", ForStmt:    "stmt",
-  FuncDef:     "stmt",   ClassDef:  "stmt", TryStmt:    "stmt",
-  Return:      "stmt",   Import:    "stmt", FromImport: "stmt",
-  Break:       "stmt",   Continue:  "stmt", Pass:       "stmt",
-  Raise:       "stmt",   Assign:    "stmt", ExprStmt:   "stmt",
-  Body:        "struct", ElifClause:"struct", ElseClause:"struct",
+  Program:"root", IfStmt:"stmt", WhileStmt:"stmt", ForStmt:"stmt",
+  FuncDef:"stmt", ClassDef:"stmt", TryStmt:"stmt", Return:"stmt",
+  Import:"stmt", FromImport:"stmt", Break:"stmt", Continue:"stmt",
+  Pass:"stmt", Raise:"stmt", Assign:"stmt", ExprStmt:"stmt",
+  Body:"struct", ElifClause:"struct", ElseClause:"struct",
   ExceptClause:"struct", FinallyClause:"struct", Params:"struct",
-  Param:       "struct", Bases:     "struct", Base:      "struct",
-  BinOp:       "expr",   UnaryOp:   "expr", Call:       "expr",
-  Subscript:   "expr",   Attr:      "expr", Tuple:      "expr",
-  List:        "expr",   DictOrSet: "expr", KVPair:     "expr",
-  Name:        "name",
-  Number:      "lit",    String:    "lit",
-  Empty:       "empty",  Unknown:   "empty",
+  Param:"struct", Bases:"struct", Base:"struct",
+  BinOp:"expr", UnaryOp:"expr", Call:"expr", Subscript:"expr",
+  Attr:"expr", Tuple:"expr", List:"expr", DictOrSet:"expr", KVPair:"expr",
+  Name:"name", Number:"lit", String:"lit", Empty:"empty", Unknown:"empty",
 };
-
 const CAT_COLOR = {
-  root:   { fill: "#1a3a5c", stroke: "#79c0ff", text: "#cce0ff" },
-  stmt:   { fill: "#1a3a5c", stroke: "#79c0ff", text: "#bfdbfe" },
-  struct: { fill: "#1f2937", stroke: "#4b5563", text: "#9ca3af" },
-  expr:   { fill: "#3b1f6e", stroke: "#7c3aed", text: "#c4b5fd" },
-  name:   { fill: "#0c1f3f", stroke: "#3b82f6", text: "#93c5fd" },
-  lit:    { fill: "#2d1500", stroke: "#f59e0b", text: "#fcd34d" },
-  kw:     { fill: "#052e16", stroke: "#22c55e", text: "#86efac" },
-  empty:  { fill: "#111827", stroke: "#374151", text: "#4b5563" },
+  root:   { fill:"#1a3a5c", stroke:"#79c0ff", text:"#cce0ff" },
+  stmt:   { fill:"#1a3a5c", stroke:"#79c0ff", text:"#bfdbfe" },
+  struct: { fill:"#1f2937", stroke:"#4b5563", text:"#9ca3af" },
+  expr:   { fill:"#3b1f6e", stroke:"#7c3aed", text:"#c4b5fd" },
+  name:   { fill:"#0c1f3f", stroke:"#3b82f6", text:"#93c5fd" },
+  lit:    { fill:"#2d1500", stroke:"#f59e0b", text:"#fcd34d" },
+  empty:  { fill:"#111827", stroke:"#374151", text:"#4b5563" },
 };
-
-function nodeLabel(n) {
-  let label = n.kind;
-  if (n.value && n.value !== null) label += `  ${n.value}`;
-  return label;
-}
-
-function nodeCategory(n) {
-  return KIND_CAT[n.kind] || "expr";
-}
-
-// Layout: measure subtree widths, then place nodes top-down
-const BOX_H    = 28;
-const BOX_PAD  = 12;
-const V_GAP    = 44;
-const H_GAP    = 14;
-const FONT_W   = 6.8;   // px per char approx at 11px mono
-
-function measureText(s) {
-  return Math.max(50, s.length * FONT_W + BOX_PAD * 2);
-}
+const BOX_H=28, BOX_PAD=12, V_GAP=44, H_GAP=14, FONT_W=6.8;
+function measureText(s) { return Math.max(50, s.length*FONT_W+BOX_PAD*2); }
+function nodeLabel(n) { return n.value!=null ? `${n.kind}  ${n.value}` : n.kind; }
+function nodeCategory(n) { return KIND_CAT[n.kind]||"expr"; }
 
 function layoutTree(node) {
-  // attach layout info to each node in place
-  const label = nodeLabel(node);
-  node._w     = measureText(label);
-  node._label = label;
-
-  const kids = (node.children || []).filter(c => c && c.kind !== "Empty" && c.kind !== "_hinglish");
-
-  if (kids.length === 0) {
-    node._subtreeW = node._w;
-    node._kids     = [];
-    return;
-  }
-
+  node._label = nodeLabel(node);
+  node._w = measureText(node._label);
+  const kids = (node.children||[]).filter(c=>c&&c.kind!=="Empty"&&c.kind!=="_hinglish");
+  if (!kids.length) { node._subtreeW=node._w; node._kids=[]; return; }
   kids.forEach(layoutTree);
-  const totalKidsW = kids.reduce((s, k) => s + k._subtreeW, 0) + (kids.length - 1) * H_GAP;
-  node._subtreeW   = Math.max(node._w, totalKidsW);
-  node._kids       = kids;
+  const tw = kids.reduce((s,k)=>s+k._subtreeW,0)+(kids.length-1)*H_GAP;
+  node._subtreeW = Math.max(node._w, tw);
+  node._kids = kids;
 }
-
 function placeTree(node, x, y) {
-  // center this node over its subtree
-  node._x = x + (node._subtreeW - node._w) / 2;
-  node._y = y;
-
-  let cx = x;
-  (node._kids || []).forEach(kid => {
-    placeTree(kid, cx, y + BOX_H + V_GAP);
-    cx += kid._subtreeW + H_GAP;
-  });
+  node._x = x+(node._subtreeW-node._w)/2; node._y = y;
+  let cx=x;
+  (node._kids||[]).forEach(kid=>{ placeTree(kid,cx,y+BOX_H+V_GAP); cx+=kid._subtreeW+H_GAP; });
 }
-
 function collectNodes(node, arr) {
-  arr.push(node);
-  (node._kids || []).forEach(k => collectNodes(k, arr));
-  return arr;
+  arr.push(node); (node._kids||[]).forEach(k=>collectNodes(k,arr)); return arr;
 }
-
-function renderAST(astDict) {
-  const container = document.getElementById("treeScroll");
-  if (!astDict) {
-    container.innerHTML = '<div class="tree-placeholder">No AST available.</div>';
-    return;
-  }
-
-  layoutTree(astDict);
-  placeTree(astDict, 20, 20);
-
-  const all  = collectNodes(astDict, []);
-  const maxX = Math.max(...all.map(n => n._x + n._w)) + 20;
-  const maxY = Math.max(...all.map(n => n._y + BOX_H)) + 20;
-
-  let svg = `<svg width="${maxX}" height="${maxY}" viewBox="0 0 ${maxX} ${maxY}"
-  xmlns="http://www.w3.org/2000/svg"
-  style="font-family:'JetBrains Mono',monospace;display:block;">
-<defs>
-  <marker id="ea" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-    <path d="M2 1L8 5L2 9" fill="none" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/>
-  </marker>
-</defs>
-`;
-
-  // edges first
-  all.forEach(n => {
-    const px = n._x + n._w / 2;
-    const py = n._y + BOX_H;
-    (n._kids || []).forEach(kid => {
-      const kx = kid._x + kid._w / 2;
-      const ky = kid._y;
-      const midy = py + (ky - py) * 0.55;
-      svg += `<path d="M${px} ${py} C${px} ${midy} ${kx} ${midy} ${kx} ${ky}"
-  fill="none" stroke="#374151" stroke-width="0.8" marker-end="url(#ea)"/>`;
+function buildSVG(astDict) {
+  layoutTree(astDict); placeTree(astDict, 20, 20);
+  const all = collectNodes(astDict, []);
+  const maxX = Math.max(...all.map(n=>n._x+n._w))+20;
+  const maxY = Math.max(...all.map(n=>n._y+BOX_H))+20;
+  let svg = `<svg width="${maxX}" height="${maxY}" viewBox="0 0 ${maxX} ${maxY}" xmlns="http://www.w3.org/2000/svg" style="font-family:'JetBrains Mono',monospace;display:block;">
+<defs><marker id="ea" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#374151" stroke-width="1.5" stroke-linecap="round"/></marker></defs>`;
+  all.forEach(n=>{
+    const px=n._x+n._w/2, py=n._y+BOX_H;
+    (n._kids||[]).forEach(kid=>{
+      const kx=kid._x+kid._w/2, ky=kid._y, mid=py+(ky-py)*0.55;
+      svg+=`<path d="M${px} ${py} C${px} ${mid} ${kx} ${mid} ${kx} ${ky}" fill="none" stroke="#374151" stroke-width="0.8" marker-end="url(#ea)"/>`;
     });
   });
-
-  // nodes
-  all.forEach(n => {
-    const cat   = nodeCategory(n);
-    const color = CAT_COLOR[cat] || CAT_COLOR.expr;
-    const x = n._x, y = n._y, w = n._w;
-    const label = escXml(n._label);
-    svg += `<g>
-  <rect x="${x}" y="${y}" width="${w}" height="${BOX_H}" rx="5"
-    fill="${color.fill}" stroke="${color.stroke}" stroke-width="0.8"/>
-  <text x="${x + w/2}" y="${y + BOX_H/2}" text-anchor="middle" dominant-baseline="central"
-    style="font-size:11px;fill:${color.text};font-family:'JetBrains Mono',monospace;">${label}</text>
-</g>`;
+  all.forEach(n=>{
+    const col=CAT_COLOR[nodeCategory(n)]||CAT_COLOR.expr;
+    svg+=`<g><rect x="${n._x}" y="${n._y}" width="${n._w}" height="${BOX_H}" rx="5" fill="${col.fill}" stroke="${col.stroke}" stroke-width="0.8"/>
+<text x="${n._x+n._w/2}" y="${n._y+BOX_H/2}" text-anchor="middle" dominant-baseline="central" style="font-size:11px;fill:${col.text};font-family:'JetBrains Mono',monospace;">${escXml(n._label)}</text></g>`;
   });
-
-  svg += '</svg>';
-  container.innerHTML = svg;
+  return svg+"</svg>";
 }
-
+function renderAST(astDict) {
+  const container = document.getElementById("treeScroll");
+  if (!astDict) { container.innerHTML='<div class="tree-placeholder">No AST available.</div>'; return; }
+  container.innerHTML = buildSVG(astDict);
+}
 function escXml(s) {
-  return String(s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-// ── Run / UI helpers ───────────────────────────────────────────
+// ── Run ────────────────────────────────────────────────────────
 function setStatus(msg, type) {
   document.getElementById("statusMsg").textContent = msg;
-  document.getElementById("statusDot").className = "status-dot" + (type ? " " + type : "");
+  document.getElementById("statusDot").className = "status-dot"+(type?" "+type:"");
 }
 function clearOutput() {
-  document.getElementById("output").innerHTML = '<span class="placeholder">Output will appear here...</span>';
-  document.getElementById("outputPanel").classList.remove("has-error");
+  document.getElementById("output").innerHTML='<span class="placeholder">Output will appear here...</span>';
+  document.getElementById("page-output").classList.remove("has-error");
 }
 
 function runCode() {
-  if (!editor) return;
   if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
+  const code = getCode();
+  if (!code.trim()) return;
+
   setStatus("Running...", "running");
-  document.getElementById("output").innerHTML = '<span class="placeholder">Executing...</span>';
-  document.getElementById("treeScroll").innerHTML = '<div class="tree-placeholder">Building AST...</div>';
+  document.getElementById("output").innerHTML='<span class="placeholder">Executing...</span>';
+  document.getElementById("treeScroll").innerHTML='<div class="tree-placeholder">Building AST...</div>';
 
   fetch("/run", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code: editor.getValue() })
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({code})
   })
-  .then(r => r.json())
-  .then(data => {
+  .then(r=>r.json())
+  .then(data=>{
     document.getElementById("python").textContent = data.python;
-    const hasError = data.output && (data.output.includes("Error") || data.output.includes("Traceback"));
-    document.getElementById("output").textContent = data.output || "(no output)";
-    document.getElementById("outputPanel").classList.toggle("has-error", hasError);
-    setStatus(hasError ? "⚠ Error" : "✓ Done", hasError ? "error" : "success");
+    const hasError = data.output&&(data.output.includes("Error")||data.output.includes("Traceback"));
+    document.getElementById("output").textContent = data.output||"(no output)";
+    document.getElementById("page-output").classList.toggle("has-error", hasError);
+    setStatus(hasError?"⚠ Error":"✓ Done", hasError?"error":"success");
 
     if (data.ast_error) {
-      document.getElementById("treeScroll").innerHTML =
-        `<div class="tree-placeholder" style="color:var(--error);">Parse error: ${escXml(data.ast_error)}</div>`;
+      document.getElementById("treeScroll").innerHTML=`<div class="tree-placeholder" style="color:var(--error);">Parse error: ${escXml(data.ast_error)}</div>`;
     } else if (data.ast) {
       renderAST(data.ast);
     }
+
+    // on mobile, jump to output tab after run
+    if (isMobile()) switchTab("output");
   })
-  .catch(err => {
-    document.getElementById("output").textContent = "Network error: " + err.message;
-    setStatus("Failed", "error");
+  .catch(err=>{
+    document.getElementById("output").textContent="Network error: "+err.message;
+    setStatus("Failed","error");
+    if (isMobile()) switchTab("output");
   });
 }
 
 function clearAll() {
   if (typeTimer) { clearTimeout(typeTimer); typeTimer = null; }
-  if (editor) editor.setValue("");
-  document.getElementById("python").innerHTML = '<span class="placeholder">Run your code to see the translation...</span>';
-  document.getElementById("treeScroll").innerHTML = '<div class="tree-placeholder">Run your code to see the AST...</div>';
+  setCode("");
+  document.getElementById("python").innerHTML='<span class="placeholder">Run your code to see the translation...</span>';
+  document.getElementById("treeScroll").innerHTML='<div class="tree-placeholder">Run your code to see the AST...</div>';
   clearOutput();
-  setStatus("Ready — press Ctrl+Enter to run", "");
+  setStatus("Ready","");
 }
-
 function toggleRef() {
   document.getElementById("refDrawer").classList.toggle("open");
   document.getElementById("refOverlay").classList.toggle("open");
 }
-
-document.addEventListener("keydown", e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runCode();
-  if (e.key === "Escape") {
-    const ov = document.getElementById("treeOverlay");
-    if (ov.classList.contains("open")) toggleTreeMax();
-  }
-});
-
 function toggleTreeMax() {
-  const overlay  = document.getElementById("treeOverlay");
+  const overlay = document.getElementById("treeOverlay");
   const fullScroll = document.getElementById("treeScrollFull");
-  const isOpen   = overlay.classList.toggle("open");
-
+  const isOpen = overlay.classList.toggle("open");
   if (isOpen) {
-    // clone the current SVG content into the overlay scroll area
     const src = document.getElementById("treeScroll");
     fullScroll.innerHTML = src.innerHTML;
     fullScroll.scrollTop = 0;
+    // on mobile also show the tree tab
+    if (isMobile()) switchTab("tree");
   }
 }
+
+document.addEventListener("keydown", e=>{
+  if ((e.ctrlKey||e.metaKey)&&e.key==="Enter") runCode();
+  if (e.key==="Escape") {
+    if (document.getElementById("treeOverlay").classList.contains("open")) toggleTreeMax();
+  }
+});
 
 buildExList();
 </script>
