@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from translator import translate, parse_to_ast
+from translator import translate, parse_to_ast, generate_tac
 import io
 import sys
 
@@ -22,6 +22,9 @@ def run_code():
     # also send the full AST for the parse-tree panel
     ast_result = parse_to_ast(hinglish_code)
 
+    # 3AC intermediate representation
+    tac_result = generate_tac(hinglish_code)
+
     output = ""
     try:
         old_stdout = sys.stdout
@@ -38,6 +41,8 @@ def run_code():
         "output":    output,
         "ast":       ast_result.get("ast"),
         "ast_error": ast_result.get("error"),
+        "tac":       tac_result.get("instructions"),
+        "tac_error": tac_result.get("error"),
     })
 
 

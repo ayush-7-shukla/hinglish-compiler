@@ -496,3 +496,40 @@ button:active { transform: scale(0.97); }
   .tab   { font-size: 11px; letter-spacing: 0.2px; }
   #mobileEditor { font-size: 13px; }
 }
+
+/* ── 3AC Panel ── */
+#tacScroll {
+  flex: 1; overflow: auto; background: var(--bg); padding: 8px 0;
+}
+.tac-list {
+  display: flex; flex-direction: column; gap: 2px; padding: 4px 8px;
+}
+.tac-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 3px 6px; border-radius: 4px;
+  transition: background 0.1s;
+  min-height: 28px;
+}
+.tac-row:hover { background: var(--surface); }
+.tac-ln {
+  font-size: 10px; color: var(--muted); min-width: 22px;
+  text-align: right; font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+.tac-badge {
+  font-size: 10px; font-weight: 600; padding: 1px 6px;
+  border-radius: 3px; flex-shrink: 0; min-width: 78px;
+  text-align: center; font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.3px;
+}
+.tac-instr {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; line-height: 1.5; flex: 1;
+  word-break: break-all;
+}
+
+/* Mobile: 3AC tab */
+@media (max-width: 768px) {
+  #page-tac.tab-active { display: flex; }
+  .result-col:has(#page-tac.tab-active) { display: flex; }
+}

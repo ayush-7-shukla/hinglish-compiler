@@ -37,9 +37,10 @@
 
 <!-- ── Mobile Tab Bar ── -->
 <div class="tab-bar" id="tabBar">
-  <button class="tab active" data-tab="editor"  onclick="switchTab('editor')">Code</button>
+  <button class="tab" data-tab="editor"  onclick="switchTab('editor')">Code</button>
   <button class="tab"        data-tab="python"  onclick="switchTab('python')">Python</button>
   <button class="tab"        data-tab="output"  onclick="switchTab('output')">Output</button>
+  <button class="tab"        data-tab="tac"     onclick="switchTab('tac')">3AC</button>
   <button class="tab"        data-tab="tree"    onclick="switchTab('tree')">AST Tree</button>
 </div>
 
@@ -134,7 +135,7 @@
   </div>
 
   <!-- Python + Output column -->
-  <div class="result-col">
+  <div class="result-col" style="border-right:1px solid var(--border);">
     <div class="result-panel panel-page" id="page-python">
       <div class="panel-header">
         <span class="panel-label">Translated Python</span>
@@ -148,6 +149,26 @@
         <span id="statusDot" class="status-dot"></span>
       </div>
       <pre id="output"><span class="placeholder">Output will appear here...</span></pre>
+    </div>
+  </div>
+
+  <!-- 3AC Panel -->
+  <div class="result-col" style="border-right:1px solid var(--border);">
+    <div class="result-panel panel-page" id="page-tac" style="flex:1;border-bottom:none;">
+      <div class="panel-header">
+        <span class="panel-label">3-Address Code</span>
+        <span class="panel-ext">IR</span>
+      </div>
+      <div class="tree-legend">
+        <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#1a3a5c;border:1px solid #79c0ff;"></div>assign</div>
+        <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#3b1f6e;border:1px solid #a78bfa;"></div>binop</div>
+        <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#052e16;border:1px solid #22c55e;"></div>call</div>
+        <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#78350f;border:1px solid #f59e0b;"></div>jump</div>
+        <div class="tree-legend-item"><div class="tree-legend-dot" style="background:#1f2937;border:1px solid #4b5563;"></div>label</div>
+      </div>
+      <div id="tacScroll">
+        <div class="tree-placeholder">Run your code to see 3AC...</div>
+      </div>
     </div>
   </div>
 
@@ -258,6 +279,7 @@ function switchTab(tab) {
     editor: "page-editor",
     python: "page-python",
     output: "page-output",
+    tac:    "page-tac",
     tree:   "page-tree",
   };
   const target = document.getElementById(map[tab]);
@@ -396,6 +418,55 @@ if (isMobile()) {
   setStatus("Tap ▶ to run", "");
 }
 
+// ── 3AC Renderer ──────────────────────────────────────────────
+const TAC_COLORS = {
+  assign:      { bg:"#1a3a5c", border:"#79c0ff", text:"#bfdbfe" },
+  binop:       { bg:"#3b1f6e", border:"#a78bfa", text:"#c4b5fd" },
+  unary:       { bg:"#3b1f6e", border:"#a78bfa", text:"#c4b5fd" },
+  call:        { bg:"#052e16", border:"#22c55e", text:"#86efac" },
+  call_void:   { bg:"#052e16", border:"#22c55e", text:"#86efac" },
+  param:       { bg:"#1c2a1e", border:"#4ade80", text:"#bbf7d0" },
+  if_goto:     { bg:"#78350f", border:"#f59e0b", text:"#fcd34d" },
+  iffalse_goto:{ bg:"#78350f", border:"#f59e0b", text:"#fcd34d" },
+  goto:        { bg:"#451a03", border:"#fb923c", text:"#fed7aa" },
+  label:       { bg:"#1f2937", border:"#4b5563", text:"#9ca3af" },
+  return:      { bg:"#1e1b4b", border:"#818cf8", text:"#c7d2fe" },
+  begin_func:  { bg:"#0f172a", border:"#475569", text:"#94a3b8" },
+  end_func:    { bg:"#0f172a", border:"#475569", text:"#94a3b8" },
+  comment:     { bg:"#111827", border:"#374151", text:"#6b7280" },
+};
+
+function renderTAC(instructions) {
+  const container = document.getElementById("tacScroll");
+  if (!instructions || instructions.length === 0) {
+    container.innerHTML = '<div class="tree-placeholder">No 3AC generated.</div>';
+    return;
+  }
+
+  let html = '<div class="tac-list">';
+  instructions.forEach((ins, i) => {
+    const col = TAC_COLORS[ins.op] || { bg:"#1f2937", border:"#4b5563", text:"#9ca3af" };
+    const isLabel = ins.op === "label";
+    const indent  = (ins.op === "comment" || isLabel) ? "" : "margin-left:12px;";
+    const mono    = ins.str || "";
+
+    html += `<div class="tac-row" style="${indent}">`;
+    // line number
+    html += `<span class="tac-ln">${i+1}</span>`;
+    // op badge
+    html += `<span class="tac-badge" style="background:${col.bg};border:1px solid ${col.border};color:${col.text};">${ins.op}</span>`;
+    // instruction text
+    html += `<span class="tac-instr" style="color:${isLabel?'var(--muted)':col.text};">${escHtml(mono)}</span>`;
+    html += `</div>`;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function escHtml(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
 // ── AST Tree Renderer ──────────────────────────────────────────
 const KIND_CAT = {
   Program:"root", IfStmt:"stmt", WhileStmt:"stmt", ForStmt:"stmt",
@@ -509,6 +580,13 @@ function runCode() {
       renderAST(data.ast);
     }
 
+    // render 3AC
+    if (data.tac_error) {
+      document.getElementById("tacScroll").innerHTML=`<div class="tree-placeholder" style="color:var(--error);">3AC error: ${escXml(data.tac_error)}</div>`;
+    } else if (data.tac) {
+      renderTAC(data.tac);
+    }
+
     // on mobile, jump to output tab after run
     if (isMobile()) switchTab("output");
   })
@@ -524,6 +602,7 @@ function clearAll() {
   setCode("");
   document.getElementById("python").innerHTML='<span class="placeholder">Run your code to see the translation...</span>';
   document.getElementById("treeScroll").innerHTML='<div class="tree-placeholder">Run your code to see the AST...</div>';
+  document.getElementById("tacScroll").innerHTML='<div class="tree-placeholder">Run your code to see 3AC...</div>';
   clearOutput();
   setStatus("Ready","");
 }

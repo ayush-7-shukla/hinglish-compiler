@@ -928,3 +928,342 @@ def parse_to_ast(source: str) -> dict:
         return {"ok": False, "ast": None, "error": str(e)}
     except Exception as e:
         return {"ok": False, "ast": None, "error": f"Internal error: {e}"}
+
+
+# ─────────────────────────────────────────────
+#  Three Address Code (3AC) Generator
+#
+#  Every instruction has the form:
+#    result = operand1  op  operand2   (BinOp)
+#    result = op operand               (UnaryOp)
+#    result = operand                  (Copy)
+#    param  operand                    (call arg)
+#    result = call func, n             (function call)
+#    label:                            (jump target)
+#    if result goto label              (conditional jump)
+#    goto label                        (unconditional jump)
+#    return result                     (return)
+# ─────────────────────────────────────────────
+
+class TAC:
+    """A single Three Address Code instruction."""
+    def __init__(self, op, result=None, arg1=None, arg2=None, label=None):
+        self.op     = op        # 'assign','binop','unary','call','param',
+                                # 'label','if_goto','goto','return','print'
+        self.result = result    # destination temp / variable
+        self.arg1   = arg1      # left operand / condition / function name
+        self.arg2   = arg2      # right operand / arg count
+        self.label  = label     # jump target label
+
+    def __str__(self):
+        if self.op == 'label':
+            return f"{self.result}:"
+        if self.op == 'assign':
+            return f"{self.result} = {self.arg1}"
+        if self.op == 'binop':
+            return f"{self.result} = {self.arg1} {self.arg2} {self.label}"
+        if self.op == 'unary':
+            return f"{self.result} = {self.arg1} {self.arg2}"
+        if self.op == 'param':
+            return f"param {self.arg1}"
+        if self.op == 'call':
+            return f"{self.result} = call {self.arg1}, {self.arg2}"
+        if self.op == 'call_void':
+            return f"call {self.arg1}, {self.arg2}"
+        if self.op == 'if_goto':
+            return f"if {self.arg1} goto {self.label}"
+        if self.op == 'iffalse_goto':
+            return f"iffalse {self.arg1} goto {self.label}"
+        if self.op == 'goto':
+            return f"goto {self.label}"
+        if self.op == 'return':
+            return f"return {self.arg1}" if self.arg1 else "return"
+        if self.op == 'begin_func':
+            return f"begin_func {self.arg1}"
+        if self.op == 'end_func':
+            return f"end_func {self.arg1}"
+        if self.op == 'comment':
+            return f"# {self.arg1}"
+        return f"? {self.op}"
+
+    def to_dict(self):
+        return {
+            "op":     self.op,
+            "result": self.result,
+            "arg1":   self.arg1,
+            "arg2":   self.arg2,
+            "label":  self.label,
+            "str":    str(self),
+        }
+
+
+class TACGenerator:
+    """Walk the AST and emit a flat list of TAC instructions."""
+
+    def __init__(self):
+        self._temp_count  = 0
+        self._label_count = 0
+        self.instructions = []
+
+    # ── helpers ──────────────────────────────
+
+    def new_temp(self):
+        self._temp_count += 1
+        return f"t{self._temp_count}"
+
+    def new_label(self, hint="L"):
+        self._label_count += 1
+        return f"{hint}{self._label_count}"
+
+    def emit(self, *args, **kwargs):
+        instr = TAC(*args, **kwargs)
+        self.instructions.append(instr)
+        return instr
+
+    # ── entry ─────────────────────────────────
+
+    def generate(self, node):
+        if node is None:
+            return None
+        method = getattr(self, "tac_" + node.kind, self.tac_unknown)
+        return method(node)
+
+    # ── statements ────────────────────────────
+
+    def tac_Program(self, n):
+        for child in n.children:
+            if child:
+                self.generate(child)
+
+    def tac_ExprStmt(self, n):
+        self.generate(n.children[0])
+
+    def tac_Assign(self, n):
+        rhs = self.generate(n.children[1])
+        lhs = self.generate(n.children[0])
+        # lhs is a Name node — use its value as the variable
+        var = n.children[0].value if n.children[0].kind == "Name" else lhs
+        if n.value == "=":
+            self.emit("assign", result=var, arg1=rhs)
+        else:
+            # augmented: x += y  →  x = x + y
+            op = n.value[0]  # '+' from '+='
+            t = self.new_temp()
+            self.emit("binop", result=t, arg1=var, arg2=op, label=rhs)
+            self.emit("assign", result=var, arg1=t)
+        return var
+
+    def tac_IfStmt(self, n):
+        # children: [cond, Body, (ElifClause|ElseClause)*]
+        end_label = self.new_label("L_end")
+        labels    = []
+
+        # -- if --
+        cond_temp = self.generate(n.children[0])
+        false_label = self.new_label("L_else")
+        self.emit("iffalse_goto", arg1=cond_temp, label=false_label)
+        self.tac_body(n.children[1])
+        self.emit("goto", label=end_label)
+        self.emit("label", result=false_label)
+
+        # -- elif / else --
+        for clause in n.children[2:]:
+            if clause.kind == "ElifClause":
+                ec = self.generate(clause.children[0])
+                nxt = self.new_label("L_else")
+                self.emit("iffalse_goto", arg1=ec, label=nxt)
+                self.tac_body(clause.children[1])
+                self.emit("goto", label=end_label)
+                self.emit("label", result=nxt)
+            elif clause.kind == "ElseClause":
+                for s in clause.children:
+                    if s:
+                        self.generate(s)
+
+        self.emit("label", result=end_label)
+
+    def tac_WhileStmt(self, n):
+        start = self.new_label("L_while")
+        end   = self.new_label("L_end")
+        self.emit("label", result=start)
+        cond = self.generate(n.children[0])
+        self.emit("iffalse_goto", arg1=cond, label=end)
+        self.tac_body(n.children[1])
+        self.emit("goto", label=start)
+        self.emit("label", result=end)
+
+    def tac_ForStmt(self, n):
+        # for VAR in ITER:  →  simplified 3AC showing iteration
+        iter_temp = self.generate(n.children[0])
+        start = self.new_label("L_for")
+        end   = self.new_label("L_end")
+        idx   = self.new_temp()
+        self.emit("assign", result=idx, arg1="0")
+        self.emit("label", result=start)
+        # condition: idx < len(iter)
+        len_t = self.new_temp()
+        self.emit("call", result=len_t, arg1="len", arg2=1)
+        cond_t = self.new_temp()
+        self.emit("binop", result=cond_t, arg1=idx, arg2="<", label=len_t)
+        self.emit("iffalse_goto", arg1=cond_t, label=end)
+        # var = iter[idx]
+        elem_t = self.new_temp()
+        self.emit("binop", result=elem_t, arg1=iter_temp, arg2="[]", label=idx)
+        self.emit("assign", result=n.value, arg1=elem_t)
+        self.tac_body(n.children[1])
+        # idx++
+        inc_t = self.new_temp()
+        self.emit("binop", result=inc_t, arg1=idx, arg2="+", label="1")
+        self.emit("assign", result=idx, arg1=inc_t)
+        self.emit("goto", label=start)
+        self.emit("label", result=end)
+
+    def tac_FuncDef(self, n):
+        params = n.children[0].children  # list of Param nodes
+        self.emit("begin_func", arg1=n.value)
+        for p in params:
+            self.emit("param", arg1=p.value)
+        self.tac_body(n.children[1])
+        self.emit("end_func", arg1=n.value)
+
+    def tac_Return(self, n):
+        if n.children:
+            val = self.generate(n.children[0])
+            self.emit("return", arg1=val)
+        else:
+            self.emit("return")
+
+    def tac_Break(self, n):
+        self.emit("comment", arg1="break")
+
+    def tac_Continue(self, n):
+        self.emit("comment", arg1="continue")
+
+    def tac_Pass(self, n):
+        self.emit("comment", arg1="pass")
+
+    def tac_Import(self, n):
+        self.emit("comment", arg1=f"import {n.value}")
+
+    def tac_FromImport(self, n):
+        self.emit("comment", arg1=f"from import {n.value}")
+
+    def tac_ClassDef(self, n):
+        self.emit("comment", arg1=f"class {n.value}")
+        self.tac_body(n.children[1])
+
+    def tac_TryStmt(self, n):
+        self.emit("comment", arg1="try")
+        self.tac_body(n.children[0])
+        for clause in n.children[1:]:
+            if clause.kind == "ExceptClause":
+                self.emit("comment", arg1="except")
+                for ch in clause.children:
+                    if ch and ch.kind == "Body":
+                        self.tac_body(ch)
+            elif clause.kind == "FinallyClause":
+                self.emit("comment", arg1="finally")
+                for ch in clause.children:
+                    if ch:
+                        self.generate(ch)
+
+    def tac_Raise(self, n):
+        if n.children:
+            val = self.generate(n.children[0])
+            self.emit("comment", arg1=f"raise {val}")
+
+    # ── expressions (return the temp/name holding the value) ──
+
+    def tac_BinOp(self, n):
+        left  = self.generate(n.children[0])
+        right = self.generate(n.children[1])
+        t = self.new_temp()
+        self.emit("binop", result=t, arg1=left, arg2=n.value, label=right)
+        return t
+
+    def tac_UnaryOp(self, n):
+        operand = self.generate(n.children[0])
+        t = self.new_temp()
+        self.emit("unary", result=t, arg1=n.value, arg2=operand)
+        return t
+
+    def tac_Call(self, n):
+        func = self.generate(n.children[0])
+        args = [self.generate(a) for a in n.children[1:]]
+        for a in args:
+            self.emit("param", arg1=a)
+        t = self.new_temp()
+        self.emit("call", result=t, arg1=func, arg2=len(args))
+        return t
+
+    def tac_Name(self, n):
+        return str(n.value)
+
+    def tac_Number(self, n):
+        return str(n.value)
+
+    def tac_String(self, n):
+        return str(n.value)
+
+    def tac_List(self, n):
+        items = [self.generate(c) for c in n.children]
+        t = self.new_temp()
+        self.emit("assign", result=t, arg1=f"[{', '.join(items)}]")
+        return t
+
+    def tac_Tuple(self, n):
+        items = [self.generate(c) for c in n.children]
+        t = self.new_temp()
+        self.emit("assign", result=t, arg1=f"({', '.join(items)})")
+        return t
+
+    def tac_DictOrSet(self, n):
+        t = self.new_temp()
+        self.emit("assign", result=t, arg1="{...}")
+        return t
+
+    def tac_Subscript(self, n):
+        obj = self.generate(n.children[0])
+        idx = self.generate(n.children[1])
+        t = self.new_temp()
+        self.emit("binop", result=t, arg1=obj, arg2="[]", label=idx)
+        return t
+
+    def tac_Attr(self, n):
+        obj = self.generate(n.children[0])
+        t = self.new_temp()
+        self.emit("assign", result=t, arg1=f"{obj}.{n.value}")
+        return t
+
+    def tac_Empty(self, n):   return "None"
+    def tac_unknown(self, n): return str(n.value or "?")
+
+    # helpers
+    def tac_body(self, body_node):
+        if body_node is None:
+            return
+        for s in body_node.children:
+            if s:
+                self.generate(s)
+
+
+# ─────────────────────────────────────────────
+#  Public API — add to existing translate/parse_to_ast
+# ─────────────────────────────────────────────
+def generate_tac(source: str) -> dict:
+    """Return 3AC instructions as a list of dicts."""
+    try:
+        lexer  = Lexer(source)
+        parser = Parser(lexer.tokens)
+        ast    = parser.parse()
+        gen    = TACGenerator()
+        gen.generate(ast)
+        return {
+            "ok":           True,
+            "instructions": [i.to_dict() for i in gen.instructions],
+            "error":        None,
+        }
+    except ParseError as e:
+        return {"ok": False, "instructions": [], "error": str(e)}
+    except Exception as e:
+        return {"ok": False, "instructions": [], "error": f"Internal error: {e}"}
